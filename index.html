@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beacon Monitor</title>
+    <style>
+        /* Simple CSS for a clean look */
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f4; }
+        h1 { color: #333; }
+        
+        #scan-btn {
+            background-color: #007bff; color: white; border: none; padding: 15px 30px;
+            font-size: 18px; border-radius: 8px; cursor: pointer; margin-bottom: 20px;
+        }
+        #scan-btn:active { background-color: #0056b3; }
+
+        .card {
+            background: white; max-width: 400px; margin: 0 auto; padding: 20px;
+            border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: left;
+        }
+        .metric { font-size: 20px; margin: 10px 0; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .label { font-weight: bold; color: #555; }
+        .value { float: right; color: #007bff; font-weight: bold; }
+        .raw-data { font-size: 12px; color: #999; margin-top: 15px; word-break: break-all; }
+        .status { color: #666; font-size: 14px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>Device Monitor</h1>
+    <p class="status" id="status-text">Click below to connect to your beacon.</p>
+    
+    <button id="scan-btn">SCAN BEACONS</button>
+
+    <div class="card" id="data-card" style="display:none;">
+        <div class="metric"><span class="label">Temperature</span> <span class="value" id="temp-val">--</span></div>
+        <div class="metric"><span class="label">Humidity</span> <span class="value" id="hum-val">--</span></div>
+        <div class="metric"><span class="label">Battery</span> <span class="value" id="batt-val">--</span></div>
+        <div class="raw-data">Raw Hex: <span id="raw-val">Waiting...</span></div>
+    </div>
+
+    <script>
+        const scanBtn = document.getElementById('scan-btn');
+        const statusText = document.getElementById('status-text');
+        const dataCard = document.getElementById('data-card');
+
+        // UI Element References
+        const tempDisplay = document.getElementById('temp-val');
+        const humDisplay = document.getElementById('hum-val');
+        const battDisplay = document.getElementById('batt-val');
+        const rawDisplay = document.getElementById('raw-val');
+
+        scanBtn.addEventListener('click', async () => {
+            try {
+                statusText.innerText = "Scanning... Please select your device.";
+                
+                // 1. REQUEST DEVICE
+                // We accept all devices for now. 
+                // Ideally, use filters: [{ namePrefix: 'MyBeacon' }] to make it cleaner.
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true
+                });
+
+                statusText.innerText = "Connected to: " + device.name;
+                dataCard.style.display = "block";
+
+                // 2. WATCH ADVERTISEMENTS (Passive Listening)
+                const abortController = new AbortController();
+                await device.watchAdvertisements({ signal: abortController.signal });
+
+                // 3. EVENT LISTENER FOR DATA PACKETS
+                device.addEventListener('advertisementreceived', (event) => {
+                    // This fires every time the beacon broadcasts (approx every 1 sec)
+                    parseBeaconData(event.manufacturerData);
+                });
+
+            } catch (error) {
+                console.error(error);
+                statusText.innerText = "Error: " + error.message;
+            }
+        });
+
+        function parseBeaconData(manufacturerData) {
+            // manufacturerData is a Map. Usually has 1 key (Company ID).
+            manufacturerData.forEach((dataView, companyId) => {
+                
+                // CONVERT RAW BYTES TO HEX FOR DEBUGGING
+                // This helps you see what is actually coming in
+                let hexString = '';
+                for (let i = 0; i < dataView.byteLength; i++) {
+                    hexString += dataView.getUint8(i).toString(16).padStart(2, '0').toUpperCase();
+                }
+                rawDisplay.innerText = `0x${companyId.toString(16).toUpperCase()} - ${hexString}`;
+
+                // --- CRITICAL: PARSING LOGIC ---
+                // YOU MUST CHANGE THE NUMBERS BELOW TO MATCH YOUR FIRMWARE
+                // Example Assumption:
+                // Byte 0 = Temperature
+                // Byte 1 = Humidity
+                // Byte 2 = Battery Voltage (scaled by 10, e.g. 30 = 3.0V)
+                
+                // Safety check to ensure we have enough bytes
+                if (dataView.byteLength >= 3) {
+                    let temp = dataView.getUint8(0); 
+                    let hum = dataView.getUint8(1);
+                    let batt = dataView.getUint8(2); 
+
+                    // Update DOM
+                    tempDisplay.innerText = temp + " °C";
+                    humDisplay.innerText = hum + " %";
+                    battDisplay.innerText = (batt / 10).toFixed(1) + " V"; // Example calculation
+                }
+            });
+        }
+    </script>
+</body>
+</html>
