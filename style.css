@@ -1,0 +1,65 @@
+root {
+    --primary: #4a148c; /* Dark purple like your app top bar */
+    --accent: #00897b;
+    --bg: #e0e0e0;
+    --card-bg: #ffffff;
+    --text-main: #333;
+    --text-sub: #757575;
+}
+
+body { font-family: 'Roboto', sans-serif; background: var(--bg); margin: 0; color: var(--text-main); }
+
+.app-bar { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
+.container { padding: 20px; max-width: 600px; margin: auto; }
+
+.card { background: var(--card-bg); border-radius: 8px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+.card-header { padding: 12px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: bold; color: var(--text-sub); }
+
+.sensor-row { display: flex; justify-content: space-around; padding: 25px 10px; }
+
+.sensor-item { display: flex; align-items: center; gap: 8px; }
+.sensor-item .icon { font-size: 1.5rem; }
+.sensor-item .val { font-size: 1.2rem; font-weight: 500; }
+
+.status-footer { padding: 10px 15px; background: #fafafa; border-top: 1px solid #eee; }
+.status-bar { height: 4px; width: 100%; border-radius: 2px; margin-bottom: 5px; }
+.connected { background: #4caf50; }
+.disconnected { background: #f44336; }
+
+.btn-icon { background: white; color: var(--primary); border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+
+.terminal-log { background: #222; color: #0f0; padding: 10px; font-family: monospace; font-size: 0.75rem; border-radius: 4px; height: 80px; overflow-y: auto; margin-top: 20px; }root {
+    --primary: #4a148c; /* Dark purple like your app top bar */
+    --accent: #00897b;
+    --bg: #e0e0e0;
+    --card-bg: #ffffff;
+    --text-main: #333;
+    --text-sub: #757575;
+}
+
+body { font-family: 'Roboto', sans-serif; background: var(--bg); margin: 0; color: var(--text-main); }
+
+.app-bar { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
+.container { padding: 20px; max-width: 600px; margin: auto; }
+
+.card { background: var(--card-bg); border-radius: 8px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+.card-header { padding: 12px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: bold; color: var(--text-sub); }
+
+.sensor-row { display: flex; justify-content: space-around; padding: 25px 10px; }
+
+.sensor-item { display: flex; align-items: center; gap: 8px; }
+.sensor-item .icon { font-size: 1.5rem; }
+.sensor-item .val { font-size: 1.2rem; font-weight: 500; }
+
+.status-footer { padding: 10px 15px; background: #fafafa; border-top: 1px solid #eee; }
+.status-bar { height: 4px; width: 100%; border-radius: 2px; margin-bottom: 5px; }
+.connected { background: #4caf50; }
+.disconnected { background: #f44336; }
+
+.btn-icon { background: white; color: var(--primary); border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+
+.terminal-log { background: #222; color: #0f0; padding: 10px; font-family: monospace; font-size: 0.75rem; border-radius: 4px; height: 80px; overflow-y: auto; margin-top: 20px; }

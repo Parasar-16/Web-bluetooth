@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beacon Pro Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="app-bar">
+            <div class="logo">GO Dashboard</div>
+            <div class="actions">
+                <button id="connectBtn" class="btn-icon">➕ Connect Beacon</button>
+            </div>
+        </header>
+
+        <div id="deviceList" class="dashboard-grid">
+            <div class="card" id="main-card">
+                <div class="card-header">
+                    <span class="device-id" id="deviceName">c005040302xx</span>
+                    <span class="timestamp" id="lastUpdate">Press Connect...</span>
+                </div>
+                
+                <div class="sensor-row">
+                    <div class="sensor-item">
+                        <span class="icon">🌡️</span>
+                        <span class="val"><span id="temp">--</span>°C</span>
+                    </div>
+                    <div class="sensor-item">
+                        <span class="icon">💧</span>
+                        <span class="val"><span id="humid">--</span>%</span>
+                    </div>
+                    <div class="sensor-item">
+                        <span class="icon">🔋</span>
+                        <span class="val"><span id="volt">--</span>V</span>
+                    </div>
+                </div>
+
+                <div class="status-footer">
+                    <div id="connectionBar" class="status-bar disconnected"></div>
+                    <small id="statusText">System Offline</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="terminal-log" id="log">
+            > System ready. Waiting for user to initiate Bluetooth scan.
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
