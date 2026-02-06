@@ -3,138 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FC-Beacon Monitor</title>
+    <title>FC-Series Live Monitor</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; background: #f0f2f5; color: #333; }
-        h1 { color: #1a73e8; margin-bottom: 10px; }
-        .status { color: #666; font-size: 14px; margin-bottom: 20px; height: 20px; }
-        
-        #scan-btn {
-            background-color: #1a73e8; color: white; border: none; padding: 16px 32px;
-            font-size: 18px; border-radius: 50px; cursor: pointer; transition: 0.3s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        #scan-btn:hover { background-color: #1557b0; transform: translateY(-2px); }
-        #scan-btn:active { transform: translateY(0); }
-
-        .card {
-            background: white; max-width: 400px; margin: 20px auto; padding: 25px;
-            border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: left;
-        }
-        .metric { font-size: 20px; margin: 15px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; }
-        .label { color: #5f6368; font-weight: 500; }
-        .value { color: #1a73e8; font-weight: bold; }
-        
-        .debug-panel {
-            background: #202124; color: #34a853; font-family: monospace; padding: 15px;
-            border-radius: 8px; font-size: 12px; margin-top: 20px; word-break: break-all;
-            max-width: 400px; margin-left: auto; margin-right: auto; text-align: left;
-        }
-        .debug-label { color: #9aa0a6; display: block; margin-bottom: 5px; text-transform: uppercase; font-size: 10px; }
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f7f6; }
+        .card { background: white; max-width: 400px; margin: 20px auto; padding: 20px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: left; }
+        .value { float: right; color: #1a73e8; font-weight: bold; font-size: 1.2em; }
+        .metric { margin: 15px 0; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        #scan-btn { background: #1a73e8; color: white; border: none; padding: 15px 30px; border-radius: 25px; font-size: 16px; cursor: pointer; }
+        .debug { background: #222; color: #0f0; padding: 10px; font-family: monospace; font-size: 11px; margin-top: 20px; border-radius: 5px; word-break: break-all; }
     </style>
 </head>
 <body>
+    <h1>FC-009SM Monitor</h1>
+    <button id="scan-btn">START SCANNING</button>
+    <p id="status">Status: Ready</p>
 
-    <h1>FC-Series Monitor</h1>
-    <p class="status" id="status-text">Ready to Scan</p>
-    
-    <button id="scan-btn">SCAN BEACONS</button>
-
-    <div class="card" id="data-card" style="display:none;">
-        <div class="metric"><span class="label">Temperature</span> <span class="value" id="temp-val">--</span></div>
-        <div class="metric"><span class="label">Humidity</span> <span class="value" id="hum-val">--</span></div>
-        <div class="metric"><span class="label">Battery</span> <span class="value" id="batt-val">--</span></div>
-        
-        <div class="debug-panel">
-            <span class="debug-label">Live Data Stream (Hex)</span>
-            <span id="raw-val">Waiting for packets...</span>
-        </div>
+    <div class="card" id="display" style="display:none;">
+        <div class="metric">Temperature: <span class="value" id="t-v">--</span></div>
+        <div class="metric">Humidity: <span class="value" id="h-v">--</span></div>
+        <div class="metric">Battery: <span class="value" id="b-v">--</span></div>
+        <div class="debug" id="raw">Waiting for signal...</div>
     </div>
 
     <script>
-        const scanBtn = document.getElementById('scan-btn');
-        const statusText = document.getElementById('status-text');
-        const dataCard = document.getElementById('data-card');
+        const btn = document.getElementById('scan-btn');
+        const st = document.getElementById('status');
 
-        // UI Displays
-        const tempDisplay = document.getElementById('temp-val');
-        const humDisplay = document.getElementById('hum-val');
-        const battDisplay = document.getElementById('batt-val');
-        const rawDisplay = document.getElementById('raw-val');
-
-        scanBtn.addEventListener('click', async () => {
+        btn.addEventListener('click', async () => {
             try {
-                // 1. Verify Browser Support
-                if (!navigator.bluetooth) {
-                    throw new Error("Web Bluetooth is not supported on this browser/OS.");
-                }
-
-                statusText.innerText = "Opening device picker...";
-
-                // 2. Request Device with FC- Filter
+                st.innerText = "Requesting device...";
+                // Filtering for your specific FC- brand
                 const device = await navigator.bluetooth.requestDevice({
                     filters: [{ namePrefix: 'FC-' }],
-                    optionalServices: ['battery_service'] 
+                    optionalServices: ['battery_service']
                 });
 
-                statusText.innerText = "Paired with " + device.name + ". Initializing...";
-                dataCard.style.display = "block";
+                document.getElementById('display').style.display = "block";
+                st.innerText = "Connecting to " + device.name + "...";
 
-                // 3. Start Advertisement Watch
-                if (device.watchAdvertisements) {
-                    await device.watchAdvertisements();
-                    statusText.innerText = "Listening for " + device.name + "...";
-                    
-                    device.addEventListener('advertisementreceived', (event) => {
-                        statusText.innerText = "Receiving live data...";
-                        handleBeaconData(event);
-                    });
-                } else {
-                    throw new Error("Browser supports Web Bluetooth, but not 'watchAdvertisements'. Please enable Chrome Flags.");
+                // CRITICAL: This requires the chrome://flags to be enabled
+                if (!device.watchAdvertisements) {
+                    st.innerText = "Error: Enable 'Experimental Web Platform features' in chrome://flags";
+                    return;
                 }
 
-            } catch (error) {
-                console.error(error);
-                statusText.innerText = "Status: " + error.message;
+                await device.watchAdvertisements();
+                st.innerText = "Listening for advertisements...";
+
+                device.addEventListener('advertisementreceived', (event) => {
+                    st.innerText = "Data Updated: " + new Date().toLocaleTimeString();
+                    
+                    // Look for data in both common BLE slots
+                    let data = event.manufacturerData.get(Array.from(event.manufacturerData.keys())[0]) 
+                               || event.serviceData.get(Array.from(event.serviceData.keys())[0]);
+
+                    if (data) {
+                        // 1. Show the Raw Hex for us to debug
+                        let hex = Array.from(new Uint8Array(data.buffer)).map(b => b.toString(16).padStart(2,'0')).join(' ');
+                        document.getElementById('raw').innerText = "Raw Hex: " + hex;
+
+                        // 2. Parse the bytes (Adjust positions if values look wrong)
+                        if (data.byteLength >= 3) {
+                            document.getElementById('t-v').innerText = data.getUint8(0) + "°C";
+                            document.getElementById('h-v').innerText = data.getUint8(1) + "%";
+                            document.getElementById('b-v').innerText = (data.getUint8(2)/10).toFixed(1) + "V";
+                        }
+                    }
+                });
+            } catch (e) {
+                st.innerText = "Error: " + e.message;
             }
         });
-
-        function handleBeaconData(event) {
-            // Beacons often put data in ManufacturerData OR ServiceData
-            if (event.manufacturerData && event.manufacturerData.size > 0) {
-                parseDataMap(event.manufacturerData, "MFR");
-            } else if (event.serviceData && event.serviceData.size > 0) {
-                parseDataMap(event.serviceData, "SVC");
-            }
-        }
-
-        function parseDataMap(dataMap, typeTag) {
-            dataMap.forEach((dataView, id) => {
-                // Generate Hex string for debugging
-                let hexString = Array.from(new Uint8Array(dataView.buffer))
-                                     .map(b => b.toString(16).padStart(2, '0').toUpperCase())
-                                     .join(' ');
-                
-                rawDisplay.innerText = `[${typeTag} ID: 0x${id.toString(16).toUpperCase()}] ${hexString}`;
-
-                // --- PARSING LOGIC ---
-                // Based on standard FC-series sensors, we assume:
-                // Byte 0 = Temperature
-                // Byte 1 = Humidity
-                // Byte 2 = Battery Voltage (divided by 10)
-                
-                if (dataView.byteLength >= 3) {
-                    const temp = dataView.getUint8(0);
-                    const hum = dataView.getUint8(1);
-                    const batt = dataView.getUint8(2);
-
-                    // Update UI
-                    tempDisplay.innerText = temp + "°C";
-                    humDisplay.innerText = hum + "%";
-                    battDisplay.innerText = (batt / 10).toFixed(1) + "V";
-                }
-            });
-        }
     </script>
 </body>
 </html>
