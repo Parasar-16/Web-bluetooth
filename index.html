@@ -3,33 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beacon Monitor</title>
+    <title>FC-Beacon Monitor</title>
     <style>
-        /* Simple CSS for a clean look */
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f4; }
-        h1 { color: #333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; background: #f0f2f5; color: #333; }
+        h1 { color: #1a73e8; margin-bottom: 10px; }
+        .status { color: #666; font-size: 14px; margin-bottom: 20px; height: 20px; }
         
         #scan-btn {
-            background-color: #007bff; color: white; border: none; padding: 15px 30px;
-            font-size: 18px; border-radius: 8px; cursor: pointer; margin-bottom: 20px;
+            background-color: #1a73e8; color: white; border: none; padding: 16px 32px;
+            font-size: 18px; border-radius: 50px; cursor: pointer; transition: 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        #scan-btn:active { background-color: #0056b3; }
+        #scan-btn:hover { background-color: #1557b0; transform: translateY(-2px); }
+        #scan-btn:active { transform: translateY(0); }
 
         .card {
-            background: white; max-width: 400px; margin: 0 auto; padding: 20px;
-            border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: left;
+            background: white; max-width: 400px; margin: 20px auto; padding: 25px;
+            border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: left;
         }
-        .metric { font-size: 20px; margin: 10px 0; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .label { font-weight: bold; color: #555; }
-        .value { float: right; color: #007bff; font-weight: bold; }
-        .raw-data { font-size: 12px; color: #999; margin-top: 15px; word-break: break-all; }
-        .status { color: #666; font-size: 14px; margin-bottom: 10px; }
+        .metric { font-size: 20px; margin: 15px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; }
+        .label { color: #5f6368; font-weight: 500; }
+        .value { color: #1a73e8; font-weight: bold; }
+        
+        .debug-panel {
+            background: #202124; color: #34a853; font-family: monospace; padding: 15px;
+            border-radius: 8px; font-size: 12px; margin-top: 20px; word-break: break-all;
+            max-width: 400px; margin-left: auto; margin-right: auto; text-align: left;
+        }
+        .debug-label { color: #9aa0a6; display: block; margin-bottom: 5px; text-transform: uppercase; font-size: 10px; }
     </style>
 </head>
 <body>
 
-    <h1>Device Monitor</h1>
-    <p class="status" id="status-text">Click below to connect to your beacon.</p>
+    <h1>FC-Series Monitor</h1>
+    <p class="status" id="status-text">Ready to Scan</p>
     
     <button id="scan-btn">SCAN BEACONS</button>
 
@@ -37,7 +44,11 @@
         <div class="metric"><span class="label">Temperature</span> <span class="value" id="temp-val">--</span></div>
         <div class="metric"><span class="label">Humidity</span> <span class="value" id="hum-val">--</span></div>
         <div class="metric"><span class="label">Battery</span> <span class="value" id="batt-val">--</span></div>
-        <div class="raw-data">Raw Hex: <span id="raw-val">Waiting...</span></div>
+        
+        <div class="debug-panel">
+            <span class="debug-label">Live Data Stream (Hex)</span>
+            <span id="raw-val">Waiting for packets...</span>
+        </div>
     </div>
 
     <script>
@@ -45,7 +56,7 @@
         const statusText = document.getElementById('status-text');
         const dataCard = document.getElementById('data-card');
 
-        // UI Element References
+        // UI Displays
         const tempDisplay = document.getElementById('temp-val');
         const humDisplay = document.getElementById('hum-val');
         const battDisplay = document.getElementById('batt-val');
@@ -53,63 +64,74 @@
 
         scanBtn.addEventListener('click', async () => {
             try {
-                statusText.innerText = "Scanning... Please select your device.";
-                
-                // 1. REQUEST DEVICE
-                // We accept all devices for now. 
-                // Ideally, use filters: [{ namePrefix: 'MyBeacon' }] to make it cleaner.
+                // 1. Verify Browser Support
+                if (!navigator.bluetooth) {
+                    throw new Error("Web Bluetooth is not supported on this browser/OS.");
+                }
+
+                statusText.innerText = "Opening device picker...";
+
+                // 2. Request Device with FC- Filter
                 const device = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true
+                    filters: [{ namePrefix: 'FC-' }],
+                    optionalServices: ['battery_service'] 
                 });
 
-                statusText.innerText = "Connected to: " + device.name;
+                statusText.innerText = "Paired with " + device.name + ". Initializing...";
                 dataCard.style.display = "block";
 
-                // 2. WATCH ADVERTISEMENTS (Passive Listening)
-                const abortController = new AbortController();
-                await device.watchAdvertisements({ signal: abortController.signal });
-
-                // 3. EVENT LISTENER FOR DATA PACKETS
-                device.addEventListener('advertisementreceived', (event) => {
-                    // This fires every time the beacon broadcasts (approx every 1 sec)
-                    parseBeaconData(event.manufacturerData);
-                });
+                // 3. Start Advertisement Watch
+                if (device.watchAdvertisements) {
+                    await device.watchAdvertisements();
+                    statusText.innerText = "Listening for " + device.name + "...";
+                    
+                    device.addEventListener('advertisementreceived', (event) => {
+                        statusText.innerText = "Receiving live data...";
+                        handleBeaconData(event);
+                    });
+                } else {
+                    throw new Error("Browser supports Web Bluetooth, but not 'watchAdvertisements'. Please enable Chrome Flags.");
+                }
 
             } catch (error) {
                 console.error(error);
-                statusText.innerText = "Error: " + error.message;
+                statusText.innerText = "Status: " + error.message;
             }
         });
 
-        function parseBeaconData(manufacturerData) {
-            // manufacturerData is a Map. Usually has 1 key (Company ID).
-            manufacturerData.forEach((dataView, companyId) => {
-                
-                // CONVERT RAW BYTES TO HEX FOR DEBUGGING
-                // This helps you see what is actually coming in
-                let hexString = '';
-                for (let i = 0; i < dataView.byteLength; i++) {
-                    hexString += dataView.getUint8(i).toString(16).padStart(2, '0').toUpperCase();
-                }
-                rawDisplay.innerText = `0x${companyId.toString(16).toUpperCase()} - ${hexString}`;
+        function handleBeaconData(event) {
+            // Beacons often put data in ManufacturerData OR ServiceData
+            if (event.manufacturerData && event.manufacturerData.size > 0) {
+                parseDataMap(event.manufacturerData, "MFR");
+            } else if (event.serviceData && event.serviceData.size > 0) {
+                parseDataMap(event.serviceData, "SVC");
+            }
+        }
 
-                // --- CRITICAL: PARSING LOGIC ---
-                // YOU MUST CHANGE THE NUMBERS BELOW TO MATCH YOUR FIRMWARE
-                // Example Assumption:
+        function parseDataMap(dataMap, typeTag) {
+            dataMap.forEach((dataView, id) => {
+                // Generate Hex string for debugging
+                let hexString = Array.from(new Uint8Array(dataView.buffer))
+                                     .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                                     .join(' ');
+                
+                rawDisplay.innerText = `[${typeTag} ID: 0x${id.toString(16).toUpperCase()}] ${hexString}`;
+
+                // --- PARSING LOGIC ---
+                // Based on standard FC-series sensors, we assume:
                 // Byte 0 = Temperature
                 // Byte 1 = Humidity
-                // Byte 2 = Battery Voltage (scaled by 10, e.g. 30 = 3.0V)
+                // Byte 2 = Battery Voltage (divided by 10)
                 
-                // Safety check to ensure we have enough bytes
                 if (dataView.byteLength >= 3) {
-                    let temp = dataView.getUint8(0); 
-                    let hum = dataView.getUint8(1);
-                    let batt = dataView.getUint8(2); 
+                    const temp = dataView.getUint8(0);
+                    const hum = dataView.getUint8(1);
+                    const batt = dataView.getUint8(2);
 
-                    // Update DOM
-                    tempDisplay.innerText = temp + " °C";
-                    humDisplay.innerText = hum + " %";
-                    battDisplay.innerText = (batt / 10).toFixed(1) + " V"; // Example calculation
+                    // Update UI
+                    tempDisplay.innerText = temp + "°C";
+                    humDisplay.innerText = hum + "%";
+                    battDisplay.innerText = (batt / 10).toFixed(1) + "V";
                 }
             });
         }
